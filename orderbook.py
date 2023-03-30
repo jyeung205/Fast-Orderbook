@@ -1,15 +1,13 @@
-from bintrees import RBTree
-
 
 class Order:
-    prev = None
-    next = None
 
     def __init__(self, price, qty, bid_ask, order_id):
         self.price = price
         self.bid_ask = bid_ask
         self.qty = qty
         self.order_id = order_id
+        self.prev = None
+        self.next = None
 
 
 class OrderList:
@@ -23,13 +21,13 @@ class OrderList:
         self.head = order
         self.tail = order
 
-    def add(self, order: Order):
+    def add_order(self, order: Order):
         self.volume += order.qty
         self.tail.next = order
         order.prev = self.tail
         self.tail = order
 
-    def remove(self, order: Order):
+    def remove_order(self, order: Order):
         self.volume -= order.qty
         if self.head is order and self.tail is order:
             self.head = None
@@ -48,7 +46,7 @@ class OrderList:
         self.volume -= self.head.qty
         if self.head is self.tail:  # if only one order in OrderList
             self.head = None
-            self.tail = None  # todo need to update min_price
+            self.tail = None
         else:
             self.head = self.head.next
 
@@ -68,34 +66,35 @@ class Tree:
 
     def add(self, order: Order):
         price = order.price
-        if self.max_price is not None:
-            self.max_price = max(self.max_price, price)
-        else:
-            self.max_price = price
-        if self.min_price is not None:
-            self.min_price = min(self.min_price, price)
-        else:
-            self.min_price = price
+        # if self.max_price is not None:
+        #     self.max_price = max(self.max_price, price)
+        # else:
+        #     self.max_price = price
+        # if self.min_price is not None:
+        #     self.min_price = min(self.min_price, price)
+        # else:
+        #     self.min_price = price
         self.order_map[order.order_id] = order
         if price in self.price_map:
-            self.price_map[price].add(order)
+            self.price_map[price].add_order(order)
         else:
             self.price_map[price] = OrderList(order)
 
     def cancel(self, order_id: int):
         order = self.order_map[order_id]
-        self.price_map[order.price].remove(order)
+        self.price_map[order.price].remove_order(order)
         if self.price_map[order.price].volume == 0:
             del self.price_map[order.price]
+            # self.update_min_max_price()
         del self.order_map[order_id]
 
-    def update_min_max_price(self):
-        if len(self.price_map) == 0:
-            self.min_price = None
-            self.max_price = None
-        else:
-            self.min_price = min(self.price_map)
-            self.max_price = max(self.price_map)
+    # def update_min_max_price(self):
+    #     if len(self.price_map) == 0:
+    #         self.min_price = None
+    #         self.max_price = None
+    #     else:
+    #         self.min_price = min(self.price_map)
+    #         self.max_price = max(self.price_map)
 
     def get_volume_at_limit(self, limit_price):
         return self.price_map[limit_price].volume
@@ -140,17 +139,20 @@ class OrderBook:
 
     def execute_market_order(self, bid_ask):  # todo market order with qty
         if bid_ask == 'bid':
-            price = self.asks_tree.min_price
+            price = min(self.asks_tree.price_map)
+
+            # price = self.asks_tree.min_price
             order_id = self.asks_tree.price_map[price].head.order_id
             qty = self.asks_tree.price_map[price].head.qty
             self.asks_tree.price_map[price].remove_head()
             del self.asks_tree.order_map[order_id]
             if self.asks_tree.price_map[price].volume == 0:
-                del self.asks_tree.price_map[self.asks_tree.min_price]
+                del self.asks_tree.price_map[price]
             self.trades.append((bid_ask, price, qty))
-            self.asks_tree.update_min_max_price()
+            # self.asks_tree.update_min_max_price()
         else:
-            price = self.bids_tree.max_price
+            # price = self.bids_tree.max_price
+            price = max(self.bids_tree.price_map)
             order_id = self.bids_tree.price_map[price].head.order_id
             qty = self.bids_tree.price_map[price].head.qty
             self.bids_tree.price_map[price].remove_head()
@@ -158,10 +160,11 @@ class OrderBook:
             if self.bids_tree.price_map[price].volume == 0:
                 del self.bids_tree.price_map[price]
             self.trades.append((bid_ask, price, qty))
-            self.bids_tree.update_min_max_price()
+            # self.bids_tree.update_min_max_price()
 
     def cancel_bid_order(self, order_id):
         self.bids_tree.cancel(order_id)
+
 
     def cancel_ask_order(self, order_id):
         self.asks_tree.cancel(order_id)
@@ -198,7 +201,9 @@ class OrderBook:
         for price, orderlist in self.asks_tree.price_map.items():
             asks.append((price, orderlist.volume))
         print('asks', asks)
+        print(self.asks_tree.order_map)
         print('bids', bids)
+        print(self.bids_tree.order_map)
         print('trades', self.trades)
 
 
