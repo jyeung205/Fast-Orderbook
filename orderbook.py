@@ -165,7 +165,6 @@ class OrderBook:
     def cancel_bid_order(self, order_id):
         self.bids_tree.cancel(order_id)
 
-
     def cancel_ask_order(self, order_id):
         self.asks_tree.cancel(order_id)
 
