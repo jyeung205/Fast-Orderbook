@@ -1,3 +1,7 @@
+import heapq
+
+from sortedcontainers import SortedDict
+
 
 class Order:
 
@@ -42,14 +46,6 @@ class OrderList:
             order.prev.next = order.next
             order.next.prev = order.prev
 
-    def remove_head(self):
-        self.volume -= self.head.qty
-        if self.head is self.tail:  # if only one order in OrderList
-            self.head = None
-            self.tail = None
-        else:
-            self.head = self.head.next
-
     def print_orderlist(self):
         head_copy = self.head
         while head_copy is not None:
@@ -57,156 +53,125 @@ class OrderList:
             head_copy = head_copy.next
 
 
-class Tree:
-    def __init__(self):
-        self.price_map = {}  # dict{price: OrderList object}
-        self.order_map = {}  # dict{order_id: Order object}
-        self.max_price = None
-        self.min_price = None
-
-    def add(self, order: Order):
-        price = order.price
-        # if self.max_price is not None:
-        #     self.max_price = max(self.max_price, price)
-        # else:
-        #     self.max_price = price
-        # if self.min_price is not None:
-        #     self.min_price = min(self.min_price, price)
-        # else:
-        #     self.min_price = price
-        self.order_map[order.order_id] = order
-        if price in self.price_map:
-            self.price_map[price].add_order(order)
-        else:
-            self.price_map[price] = OrderList(order)
-
-    def cancel(self, order_id: int):
-        order = self.order_map[order_id]
-        self.price_map[order.price].remove_order(order)
-        if self.price_map[order.price].volume == 0:
-            del self.price_map[order.price]
-            # self.update_min_max_price()
-        del self.order_map[order_id]
-
-    # def update_min_max_price(self):
-    #     if len(self.price_map) == 0:
-    #         self.min_price = None
-    #         self.max_price = None
-    #     else:
-    #         self.min_price = min(self.price_map)
-    #         self.max_price = max(self.price_map)
-
-    def get_volume_at_limit(self, limit_price):
-        return self.price_map[limit_price].volume
-
-    def print_price_map(self):
-        print("Price Map", self.price_map)
-
-    def print_order_map(self):
-        print("Order Map", self.order_map)
-
-
 class OrderBook:
     def __init__(self):
-        self.bids_tree = Tree()
-        self.asks_tree = Tree()
-        self.id_count = 1
+        self.order_id_map = {}
+        self.bid_price_map = SortedDict()
+        self.ask_price_map = SortedDict()
         self.trades = []
+        self.bid_price_heap = []
+        self.ask_price_heap = []
 
-    def parse_input(self, input):
+    def parse_input(self, input: dict):
         if input['type'] == 'limit':
-            self.place_limit_order(input['price'], input['qty'], input['bid_ask'])
+            self.place_limit_order(input['price'], input['qty'], input['bid_ask'], input['order_id'])
         elif input['type'] == 'cancel':
-            if self.asks_tree.order_map.get(input['order_id']):
-                self.cancel_ask_order(input['order_id'])
-            elif self.bids_tree.order_map.get(input['order_id']):
-                self.cancel_bid_order(input['order_id'])
-            else:
-                print(
-                    f'Order id {input["order_id"]} does not exist in the orderbook! ----------------------------------')
+            self.cancel_order(input['order_id'])
         elif input['type'] == 'market':
             self.execute_market_order(input['bid_ask'])
         else:
-            print('invalid input type')
+            raise Exception('Invalid input type, only accept limit, cancel, market')
 
-    def place_limit_order(self, price, qty, bid_ask):
-        order = Order(price, qty, bid_ask, order_id=self.id_count)
+    def place_limit_order(self, price: int, qty: int, bid_ask: str, order_id: int):
+        order = Order(price, qty, bid_ask, order_id)
+        self.order_id_map[order_id] = order
         if order.bid_ask == 'bid':
-            self.bids_tree.add(order)
+            if price in self.bid_price_map:
+                order_list = self.bid_price_map[price]
+                order_list.add_order(order)
+            else:
+                self.bid_price_map[price] = OrderList(order)
+                heapq.heappush(self.bid_price_heap, -price)
         else:
-            self.asks_tree.add(order)
-        self.id_count += 1
+            if price in self.ask_price_map:
+                order_list = self.ask_price_map[price]
+                order_list.add_order(order)
+            else:
+                self.ask_price_map[price] = OrderList(order)
+                heapq.heappush(self.ask_price_heap, price)
 
-    def execute_market_order(self, bid_ask):  # todo market order with qty
+    def cancel_order(self, order_id: int):
+        try:
+            order = self.order_id_map[order_id]
+        except:
+            raise Exception('Order id does not exist in the orderbook')
+        price = order.price
+        bid_ask = order.bid_ask
         if bid_ask == 'bid':
-            price = min(self.asks_tree.price_map)
-
-            # price = self.asks_tree.min_price
-            order_id = self.asks_tree.price_map[price].head.order_id
-            qty = self.asks_tree.price_map[price].head.qty
-            self.asks_tree.price_map[price].remove_head()
-            del self.asks_tree.order_map[order_id]
-            if self.asks_tree.price_map[price].volume == 0:
-                del self.asks_tree.price_map[price]
-            self.trades.append((bid_ask, price, qty))
-            # self.asks_tree.update_min_max_price()
+            order_list = self.bid_price_map[price]
+            order_list.remove_order(order)
+            if order_list.volume == 0:
+                del self.bid_price_map[price]
+                heapq.heappop(self.bid_price_heap)
         else:
-            # price = self.bids_tree.max_price
-            price = max(self.bids_tree.price_map)
-            order_id = self.bids_tree.price_map[price].head.order_id
-            qty = self.bids_tree.price_map[price].head.qty
-            self.bids_tree.price_map[price].remove_head()
-            del self.bids_tree.order_map[order_id]
-            if self.bids_tree.price_map[price].volume == 0:
-                del self.bids_tree.price_map[price]
-            self.trades.append((bid_ask, price, qty))
-            # self.bids_tree.update_min_max_price()
+            order_list = self.ask_price_map[price]
+            order_list.remove_order(order)
+            if order_list.volume == 0:
+                del self.ask_price_map[price]
+                heapq.heappop(self.ask_price_heap)
+        del self.order_id_map[order_id]
 
-    def cancel_bid_order(self, order_id):
-        self.bids_tree.cancel(order_id)
+    def execute_market_order(self, bid_ask: str):
+        if bid_ask == 'bid':
+            price = self.ask_price_heap[0]
+            order_list = self.ask_price_map[price]
 
-    def cancel_ask_order(self, order_id):
-        self.asks_tree.cancel(order_id)
+            best_maker_order = order_list.head
+            maker_order_id = best_maker_order.order_id
+            qty = best_maker_order.qty
+
+            order_list.remove_order(best_maker_order)
+            del self.order_id_map[maker_order_id]
+
+            if order_list.volume == 0:
+                del self.ask_price_map[price]
+                heapq.heappop(self.ask_price_heap)
+
+        else:
+            price = -self.bid_price_heap[0]
+            order_list = self.bid_price_map[price]
+
+            best_maker_order = order_list.head
+            maker_order_id = best_maker_order.order_id
+            qty = best_maker_order.qty
+
+            order_list.remove_order(best_maker_order)
+            del self.order_id_map[maker_order_id]
+
+            if order_list.volume == 0:
+                del self.bid_price_map[price]
+                heapq.heappop(self.bid_price_heap)
+
+        self.trades.append((bid_ask, price, qty))
 
     def get_best_bid(self):
-        return self.bids_tree.max_price
+        if len(self.bid_price_map) == 0:
+            raise Exception('There are no bid orders in the orderbook')
+        return -self.bid_price_heap[0]
 
     def get_best_ask(self):
-        return self.asks_tree.min_price
+        if len(self.ask_price_map) == 0:
+            raise Exception('There are no ask orders in the orderbook')
+        return self.ask_price_heap[0]
 
     def get_bid_volume_at_limit_price(self, price):
-        return self.bids_tree.get_volume_at_limit(limit_price=price)
+        return self.bid_price_map[price].volume
 
     def get_ask_volume_at_limit_price(self, price):
-        return self.asks_tree.get_volume_at_limit(limit_price=price)
-
-    def print_bid_order_map(self):
-        self.bids_tree.print_order_map()
-
-    def print_ask_order_map(self):
-        self.asks_tree.print_order_map()
-
-    def print_bid_price_map(self):
-        self.bids_tree.print_price_map()
-
-    def print_ask_price_map(self):
-        self.asks_tree.print_price_map()
+        return self.ask_price_map[price].volume
 
     def print_orderbook(self):
         bids = []
-        for price, orderlist in self.bids_tree.price_map.items():
+        for price, orderlist in self.bid_price_map.items():
             bids.append((price, orderlist.volume))
         asks = []
-        for price, orderlist in self.asks_tree.price_map.items():
+        for price, orderlist in self.ask_price_map.items():
             asks.append((price, orderlist.volume))
         print('asks', asks)
-        print(self.asks_tree.order_map)
         print('bids', bids)
-        print(self.bids_tree.order_map)
+        print('order id map ', self.order_id_map)
         print('trades', self.trades)
 
-
-# todo how to keep the price of the orders sort ??
 
 if __name__ == '__main__':
     orderbook = OrderBook()
@@ -270,23 +235,5 @@ if __name__ == '__main__':
 
     for input in inputs:
         orderbook.parse_input(input)
-
         orderbook.print_orderbook()
-        # print('ASK ---------')
-        # orderbook.print_ask_order_map()
-        # orderbook.print_ask_price_map()
-        # print('best ask', orderbook.get_best_ask())
-        # print('BID ---------')
-        # orderbook.print_bid_order_map()
-        # orderbook.print_bid_price_map()
-        # print('best bid', orderbook.get_best_bid())
-        #
-        # if input['type'] == 'limit':
-        #     if input['bid_ask'] == 'bid':
-        #         print('volume', orderbook.get_bid_volume_at_limit_price(input['price']))
-        #     else:
-        #         print('volume', orderbook.get_ask_volume_at_limit_price(input['price']))
         print('----------------------------------------------------')
-
-    # tree = RBTree()
-    # tree.insert()
