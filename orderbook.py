@@ -145,20 +145,28 @@ class OrderBook:
         self.trades.append((bid_ask, price, qty))
 
     def get_best_bid(self):
-        if len(self.bid_price_map) == 0:
+        try:
+            return -self.bid_price_heap[0]
+        except:
             raise Exception('There are no bid orders in the orderbook')
-        return -self.bid_price_heap[0]
 
     def get_best_ask(self):
-        if len(self.ask_price_map) == 0:
+        try:
+            self.ask_price_heap[0]
+        except:
             raise Exception('There are no ask orders in the orderbook')
-        return self.ask_price_heap[0]
 
     def get_bid_volume_at_limit_price(self, price):
-        return self.bid_price_map[price].volume
+        try:
+            return self.bid_price_map[price].volume
+        except:
+            return 0
 
     def get_ask_volume_at_limit_price(self, price):
-        return self.ask_price_map[price].volume
+        try:
+            return self.ask_price_map[price].volume
+        except:
+            return 0
 
     def print_orderbook(self):
         bids = []
@@ -232,8 +240,24 @@ if __name__ == '__main__':
             'bid_ask': 'bid',
         },
     ]
-
+    inputs = [
+        {
+            'type': 'limit',
+            "price": 100,
+            'qty': 10,
+            'bid_ask': 'bid',
+            'order_id': 1
+        },
+        {
+            'type': 'limit',
+            "price": 101,
+            'qty': 19,
+            'bid_ask': 'bid',
+            'order_id': 2
+        }
+    ]
     for input in inputs:
         orderbook.parse_input(input)
-        orderbook.print_orderbook()
+        # orderbook.print_orderbook()
+        print(orderbook.get_best_bid())
         print('----------------------------------------------------')
