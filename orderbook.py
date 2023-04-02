@@ -159,13 +159,13 @@ class OrderBook:
         try:
             return -self.bid_price_heap[0]
         except IndexError:
-            raise Exception('There are no bid orders in the orderbook')
+            print('There are no bid orders in the orderbook')
 
     def get_best_ask(self):
         try:
             return self.ask_price_heap[0]
         except IndexError:
-            raise Exception('There are no ask orders in the orderbook')
+            print('There are no ask orders in the orderbook')
 
     def get_bid_volume_at_price(self, price: int):
         try:
