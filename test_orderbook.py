@@ -17,7 +17,7 @@ class TestOrderBook(unittest.TestCase):
             'type': 'limit',
             "price": 100,
             'qty': 10,
-            'bid_ask': 'bid',
+            'side': 'bid',
             'order_id': 1
         }
         order_book.parse_input(order)
@@ -39,14 +39,14 @@ class TestOrderBook(unittest.TestCase):
                 'type': 'limit',
                 "price": 100,
                 'qty': 10,
-                'bid_ask': 'bid',
+                'side': 'bid',
                 'order_id': 1
             },
             {
                 'type': 'limit',
                 "price": 100,
                 'qty': 19,
-                'bid_ask': 'bid',
+                'side': 'bid',
                 'order_id': 2
             }
         ]
@@ -55,7 +55,7 @@ class TestOrderBook(unittest.TestCase):
         order_id = 2
         order_price = 100
         volume = 10 + 19
-        self.assertEqual(order_book.order_id_map[order_id], order_book.bid_price_map[order_price].tail)
+        self.assertEqual(order_book.order_id_map[order_id], order_book.bid_price_map[order_price].tail, order_book.bid_price_map[order_price].head.next)
         self.assertEqual(volume, order_book.get_bid_volume_at_limit_price(order_price))
 
     def test_place_order_at_new_price(self):
@@ -71,21 +71,21 @@ class TestOrderBook(unittest.TestCase):
                 'type': 'limit',
                 "price": 100,
                 'qty': 10,
-                'bid_ask': 'bid',
+                'side': 'bid',
                 'order_id': 1
             },
             {
                 'type': 'limit',
                 "price": 101,
                 'qty': 19,
-                'bid_ask': 'bid',
+                'side': 'bid',
                 'order_id': 2
             }
         ]
         for order in orders:
             order_book.parse_input(order)
         order_id = 2
-        order_price = 99
+        order_price = 101
         volume = 19
         self.assertIn(order_id, order_book.order_id_map)
         self.assertEqual(order_book.order_id_map[order_id], order_book.bid_price_map[order_price].head)
@@ -93,6 +93,59 @@ class TestOrderBook(unittest.TestCase):
         self.assertIn(101, order_book.bid_price_map)
         self.assertEqual(101, order_book.get_best_bid())
         self.assertEqual(volume, order_book.get_bid_volume_at_limit_price(order_price))
+
+    def test_best_bid_ask_and_volume(self):
+        order_book = OrderBook()
+        orders = [
+            {
+                'type': 'limit',
+                "price": 102,
+                'qty': 2,
+                'side': 'ask',
+                'order_id': 1
+            },
+            {
+                'type': 'limit',
+                "price": 101,
+                'qty': 5,
+                'side': 'ask',
+                'order_id': 2
+            },
+            {
+                'type': 'limit',
+                "price": 98,
+                'qty': 10,
+                'side': 'bid',
+                'order_id': 3
+            },
+            {
+                'type': 'limit',
+                "price": 101,
+                'qty': 2,
+                'side': 'ask',
+                'order_id': 4
+            },
+            {
+                'type': 'limit',
+                "price": 99,
+                'qty': 7,
+                'side': 'bid',
+                'order_id': 5
+            },
+            {
+                'type': 'limit',
+                "price": 99,
+                'qty': 9,
+                'side': 'bid',
+                'order_id': 6
+            },
+        ]
+        for order in orders:
+            order_book.parse_input(order)
+        self.assertEqual(101, order_book.get_best_ask())
+        self.assertEqual(99, order_book.get_best_bid())
+        self.assertEqual(16, order_book.get_bid_volume_at_limit_price(99))
+        self.assertEqual(7, order_book.get_ask_volume_at_limit_price(101))
 
     def test_cancel_not_only_order_at_price(self):
         """
@@ -107,7 +160,7 @@ class TestOrderBook(unittest.TestCase):
                 'type': 'limit',
                 "price": 101,
                 'qty': 2,
-                'bid_ask': 'ask',
+                'side': 'ask',
                 'order_id': 1
             },
             {
@@ -139,21 +192,21 @@ class TestOrderBook(unittest.TestCase):
                 'type': 'limit',
                 "price": 101,
                 'qty': 2,
-                'bid_ask': 'ask',
+                'side': 'ask',
                 'order_id': 1
             },
             {
                 'type': 'limit',
                 "price": 101,
                 'qty': 5,
-                'bid_ask': 'ask',
+                'side': 'ask',
                 'order_id': 2
             },
             {
                 'type': 'limit',
                 "price": 101,
                 'qty': 10,
-                'bid_ask': 'ask',
+                'side': 'ask',
                 'order_id': 3
             },
             {
@@ -169,13 +222,45 @@ class TestOrderBook(unittest.TestCase):
         self.assertEqual(10, order_book.ask_price_map[order_price].head.next.qty)
         self.assertEqual(12, order_book.get_ask_volume_at_limit_price(order_price))
 
-
-    # def test_execute_market_trade(self):
-    #     """
-    #     - check if best bid/ask order has been removed
-    #     - check if trade exists in the trade tracker
-    #     """
-    #     pass
+    def test_execute_market_trade(self):
+        """
+        - check if trade exists in the trade tracker
+        - check if best bid/ask order has been updated
+        - check volume at previous bid/ask is 0
+        """
+        order_book = OrderBook()
+        orders = [
+            {
+                'type': 'limit',
+                "price": 101,
+                'qty': 2,
+                'side': 'ask',
+                'order_id': 1
+            },
+            {
+                'type': 'limit',
+                "price": 99,
+                'qty': 5,
+                'side': 'bid',
+                'order_id': 2
+            },
+            {
+                'type': 'limit',
+                "price": 102,
+                'qty': 10,
+                'side': 'ask',
+                'order_id': 3
+            },
+            {
+                "type": 'market',
+                'side': 'bid',
+            }
+        ]
+        for order in orders:
+            order_book.parse_input(order)
+        self.assertIn({'side': 'bid', 'price': 101, 'qty': 2}, order_book.trades)
+        self.assertEqual(0, order_book.get_ask_volume_at_limit_price(101))
+        self.assertEqual(102, order_book.get_best_ask())
 
 
 if __name__ == '__main__':

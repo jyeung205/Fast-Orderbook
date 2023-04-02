@@ -1,14 +1,14 @@
 place_limit_order
 - O(1) if price exists in orderbook
-- O(logn) if price does not exist in orderbook
+- O(logn) if price does not exist in orderbook (heappush)
 
 cancel_order
 - O(1) if volume at price does not become 0
-- O(logn) if volume at price becomes 0
+- O(n) if volume at price becomes 0 (remove price and reheapify)
 
 execute_market_order
 - O(1)
-- O(logn) if have to update best bid/ask
+- O(logn) if have to update best bid/ask (heappop)
 
 get_best_bid
 - O(1)
