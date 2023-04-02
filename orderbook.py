@@ -25,13 +25,13 @@ class OrderList:
         self.head = order
         self.tail = order
 
-    def add_order(self, order: Order):
+    def add(self, order: Order):
         self.volume += order.qty
         self.tail.next = order
         order.prev = self.tail
         self.tail = order
 
-    def remove_order(self, order: Order):
+    def remove(self, order: Order):
         self.volume -= order.qty
         if self.head is order and self.tail is order:
             self.head = None
@@ -83,14 +83,14 @@ class OrderBook:
         if order.side == 'bid':
             if price in self.bids:
                 order_list = self.bids[price]
-                order_list.create_order(order)
+                order_list.add(order)
             else:
                 self.bids[price] = OrderList(order)
                 heapq.heappush(self.bid_price_heap, -price)
         else:
             if price in self.asks:
                 order_list = self.asks[price]
-                order_list.create_order(order)
+                order_list.add(order)
             else:
                 self.asks[price] = OrderList(order)
                 heapq.heappush(self.ask_price_heap, price)
@@ -104,14 +104,14 @@ class OrderBook:
         side = order.side
         if side == 'bid':
             order_list = self.bids[price]
-            order_list.remove_order(order)
+            order_list.remove(order)
             if order_list.volume == 0:
                 del self.bids[price]
-                self.bid_price_heap.remove(price)
+                self.bid_price_heap.remove(-price)
                 heapq.heapify(self.bid_price_heap)
         else:
             order_list = self.asks[price]
-            order_list.remove_order(order)
+            order_list.remove(order)
             if order_list.volume == 0:
                 del self.asks[price]
                 self.ask_price_heap.remove(price)
@@ -127,7 +127,7 @@ class OrderBook:
             maker_order_id = best_maker_order.order_id
             qty = best_maker_order.qty
 
-            order_list.remove_order(best_maker_order)
+            order_list.remove(best_maker_order)
             del self.order_id_map[maker_order_id]
 
             if order_list.volume == 0:
@@ -142,7 +142,7 @@ class OrderBook:
             maker_order_id = best_maker_order.order_id
             qty = best_maker_order.qty
 
-            order_list.remove_order(best_maker_order)
+            order_list.remove(best_maker_order)
             del self.order_id_map[maker_order_id]
 
             if order_list.volume == 0:
@@ -167,13 +167,13 @@ class OrderBook:
         except IndexError:
             raise Exception('There are no ask orders in the orderbook')
 
-    def get_bid_volume_at_limit_price(self, price: int):
+    def get_bid_volume_at_price(self, price: int):
         try:
             return self.bids[price].volume
         except KeyError:
             return 0
 
-    def get_ask_volume_at_limit_price(self, price: int):
+    def get_ask_volume_at_price(self, price: int):
         try:
             return self.asks[price].volume
         except KeyError:
