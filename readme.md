@@ -7,8 +7,8 @@ cancel_order
 - O(n) if volume at price becomes 0 (remove price and reheapify)
 
 execute_market_order
-- O(1)
-- O(logn) if have to update best bid/ask (heappop)
+- O(1) if volume at best bid/ask does not become 0
+- O(logn) volume at best bid/ask becomes 0 (update best bid/ask using heappop)
 
 get_best_bid
 - O(1)

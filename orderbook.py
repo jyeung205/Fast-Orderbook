@@ -56,38 +56,43 @@ class OrderList:
 class OrderBook:
     def __init__(self):
         self.order_id_map = {}
-        self.bid_price_map = SortedDict()
-        self.ask_price_map = SortedDict()
+        self.bids = SortedDict()
+        self.asks = SortedDict()
         self.trades = []
         self.bid_price_heap = []
         self.ask_price_heap = []
 
     def parse_input(self, input: dict):
         if input['type'] == 'limit':
-            self.place_limit_order(input['price'], input['qty'], input['side'], input['order_id'])
+            self.create_order(
+                input['price'],
+                input['qty'],
+                input['side'],
+                input['order_id']
+            )
         elif input['type'] == 'cancel':
             self.cancel_order(input['order_id'])
         elif input['type'] == 'market':
             self.execute_market_order(input['side'])
         else:
-            raise Exception('Invalid input type, only accept limit, cancel, market')
+            raise Exception('Invalid input type, only accept type: limit, cancel, market')
 
-    def place_limit_order(self, price: int, qty: int, side: str, order_id: int):
+    def create_order(self, price: int, qty: int, side: str, order_id: int):
         order = Order(price, qty, side, order_id)
         self.order_id_map[order_id] = order
         if order.side == 'bid':
-            if price in self.bid_price_map:
-                order_list = self.bid_price_map[price]
-                order_list.add_order(order)
+            if price in self.bids:
+                order_list = self.bids[price]
+                order_list.create_order(order)
             else:
-                self.bid_price_map[price] = OrderList(order)
+                self.bids[price] = OrderList(order)
                 heapq.heappush(self.bid_price_heap, -price)
         else:
-            if price in self.ask_price_map:
-                order_list = self.ask_price_map[price]
-                order_list.add_order(order)
+            if price in self.asks:
+                order_list = self.asks[price]
+                order_list.create_order(order)
             else:
-                self.ask_price_map[price] = OrderList(order)
+                self.asks[price] = OrderList(order)
                 heapq.heappush(self.ask_price_heap, price)
 
     def cancel_order(self, order_id: int):
@@ -98,17 +103,17 @@ class OrderBook:
         price = order.price
         side = order.side
         if side == 'bid':
-            order_list = self.bid_price_map[price]
+            order_list = self.bids[price]
             order_list.remove_order(order)
             if order_list.volume == 0:
-                del self.bid_price_map[price]
+                del self.bids[price]
                 self.bid_price_heap.remove(price)
                 heapq.heapify(self.bid_price_heap)
         else:
-            order_list = self.ask_price_map[price]
+            order_list = self.asks[price]
             order_list.remove_order(order)
             if order_list.volume == 0:
-                del self.ask_price_map[price]
+                del self.asks[price]
                 self.ask_price_heap.remove(price)
                 heapq.heapify(self.ask_price_heap)
         del self.order_id_map[order_id]
@@ -116,7 +121,7 @@ class OrderBook:
     def execute_market_order(self, side: str):
         if side == 'bid':
             price = self.ask_price_heap[0]
-            order_list = self.ask_price_map[price]
+            order_list = self.asks[price]
 
             best_maker_order = order_list.head
             maker_order_id = best_maker_order.order_id
@@ -126,12 +131,12 @@ class OrderBook:
             del self.order_id_map[maker_order_id]
 
             if order_list.volume == 0:
-                del self.ask_price_map[price]
+                del self.asks[price]
                 heapq.heappop(self.ask_price_heap)
 
         else:
             price = -self.bid_price_heap[0]
-            order_list = self.bid_price_map[price]
+            order_list = self.bids[price]
 
             best_maker_order = order_list.head
             maker_order_id = best_maker_order.order_id
@@ -141,14 +146,14 @@ class OrderBook:
             del self.order_id_map[maker_order_id]
 
             if order_list.volume == 0:
-                del self.bid_price_map[price]
+                del self.bids[price]
                 heapq.heappop(self.bid_price_heap)
 
         self.trades.append({
-                "side": side,
-                "price": price,
-                "qty": qty
-            })
+            "side": side,
+            "price": price,
+            "qty": qty
+        })
 
     def get_best_bid(self):
         try:
@@ -162,24 +167,24 @@ class OrderBook:
         except IndexError:
             raise Exception('There are no ask orders in the orderbook')
 
-    def get_bid_volume_at_limit_price(self, price):
+    def get_bid_volume_at_limit_price(self, price: int):
         try:
-            return self.bid_price_map[price].volume
+            return self.bids[price].volume
         except KeyError:
             return 0
 
-    def get_ask_volume_at_limit_price(self, price):
+    def get_ask_volume_at_limit_price(self, price: int):
         try:
-            return self.ask_price_map[price].volume
+            return self.asks[price].volume
         except KeyError:
             return 0
 
     def print_orderbook(self):
         bids = []
-        for price, orderlist in self.bid_price_map.items():
+        for price, orderlist in self.bids.items():
             bids.append((price, orderlist.volume))
         asks = []
-        for price, orderlist in self.ask_price_map.items():
+        for price, orderlist in self.asks.items():
             asks.append((price, orderlist.volume))
         print('asks', asks)
         print('bids', bids)

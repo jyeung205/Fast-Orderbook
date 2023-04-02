@@ -22,7 +22,7 @@ class TestOrderBook(unittest.TestCase):
         }
         order_book.parse_input(order)
         self.assertIn(order['order_id'], order_book.order_id_map)
-        self.assertEqual(order_book.order_id_map[order['order_id']], order_book.bid_price_map[order['price']].head)
+        self.assertEqual(order_book.order_id_map[order['order_id']], order_book.bids[order['price']].head)
         self.assertEqual(order['price'], order_book.get_best_bid())
         self.assertEqual(order['qty'], order_book.get_bid_volume_at_limit_price(order['price']))
 
@@ -55,7 +55,7 @@ class TestOrderBook(unittest.TestCase):
         order_id = 2
         order_price = 100
         volume = 10 + 19
-        self.assertEqual(order_book.order_id_map[order_id], order_book.bid_price_map[order_price].tail, order_book.bid_price_map[order_price].head.next)
+        self.assertEqual(order_book.order_id_map[order_id], order_book.bids[order_price].tail, order_book.bids[order_price].head.next)
         self.assertEqual(volume, order_book.get_bid_volume_at_limit_price(order_price))
 
     def test_place_order_at_new_price(self):
@@ -88,9 +88,9 @@ class TestOrderBook(unittest.TestCase):
         order_price = 101
         volume = 19
         self.assertIn(order_id, order_book.order_id_map)
-        self.assertEqual(order_book.order_id_map[order_id], order_book.bid_price_map[order_price].head)
-        self.assertIn(100, order_book.bid_price_map)
-        self.assertIn(101, order_book.bid_price_map)
+        self.assertEqual(order_book.order_id_map[order_id], order_book.bids[order_price].head)
+        self.assertIn(100, order_book.bids)
+        self.assertIn(101, order_book.bids)
         self.assertEqual(101, order_book.get_best_bid())
         self.assertEqual(volume, order_book.get_bid_volume_at_limit_price(order_price))
 
@@ -173,7 +173,7 @@ class TestOrderBook(unittest.TestCase):
         order_id = 1
         order_price = 101
         self.assertNotIn(order_id, order_book.order_id_map)
-        self.assertNotIn(order_price, order_book.ask_price_map)
+        self.assertNotIn(order_price, order_book.asks)
         self.assertNotIn(order_price, order_book.ask_price_heap)
         with self.assertRaises(Exception):
             order_book.get_best_ask()
@@ -219,7 +219,7 @@ class TestOrderBook(unittest.TestCase):
         order_id = 2
         order_price = 101
         self.assertNotIn(order_id, order_book.order_id_map)
-        self.assertEqual(10, order_book.ask_price_map[order_price].head.next.qty)
+        self.assertEqual(10, order_book.asks[order_price].head.next.qty)
         self.assertEqual(12, order_book.get_ask_volume_at_limit_price(order_price))
 
     def test_execute_market_trade(self):
