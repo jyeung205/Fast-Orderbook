@@ -1,3 +1,26 @@
+"""
+Orderbook
+attributes
+- keep track of orders, separated by price
+- prioritise orders that arrive earlier
+- keep track of trades
+- keep track of min/max bid/ask prices
+
+methods
+- add_order
+- cancel_order
+- execute_market_order
+- get_best_bid/ask
+- get_volume
+
+ask = {price: LinkedList of Order objects}
+bid = {price: LinkedList of Order objects}
+
+
+LinkedListObject
+- volume attribute
+"""
+
 import heapq
 
 from sortedcontainers import SortedDict
