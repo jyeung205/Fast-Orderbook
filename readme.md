@@ -4,7 +4,10 @@ This is a fast limit orderbook implementation based on the post:
 
 https://web.archive.org/web/20110219163448/http://howtohft.wordpress.com/2011/02/15/how-to-build-a-fast-limit-order-book/
 
-There are three main operations that a limit order book has to implement: add, cancel, and execute.  
+There are three main operations that a limit order book has to implement: 
+- add 
+- cancel 
+- execute  
 
 The vast majority of the activity in a book is usually made up of add and cancel operations, distantly followed by executions in third. 
 
